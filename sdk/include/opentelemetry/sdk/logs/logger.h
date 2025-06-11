@@ -59,6 +59,12 @@ public:
     return GetInstrumentationScope();
   }
 
+#if OPENTELEMETRY_ABI_VERSION_NO >= 2
+  bool EnabledImplementation() const noexcept override {
+    return logger_config_.IsEnabled();
+  }
+#endif
+
 private:
   // The name of this logger
   std::string logger_name_;
