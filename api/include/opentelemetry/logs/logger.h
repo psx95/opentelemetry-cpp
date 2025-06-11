@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "opentelemetry/logs/logger_type_traits.h"
 #include "opentelemetry/logs/severity.h"
 #include "opentelemetry/nostd/string_view.h"
@@ -275,6 +277,8 @@ public:
     return EnabledImplementation(severity, event_id);
   }
 
+  // TODO: This method is not compliant with the current spec. Event name should be used instead.
+  // Event name is a string.
   inline bool Enabled(Severity severity, int64_t event_id) const noexcept
   {
     if OPENTELEMETRY_LIKELY_CONDITION (!Enabled(severity))
@@ -288,6 +292,52 @@ public:
   {
     return static_cast<uint8_t>(severity) >= OPENTELEMETRY_ATOMIC_READ_8(&minimum_severity_);
   }
+
+  // TODO: Delete this, only for testing
+  inline bool Enabled() const noexcept {
+    return EnabledImplementation();
+  }
+
+  // TODO: Delete this, only for testing
+  inline bool Enabled(Severity severity, std::string event_name) const noexcept {
+    if OPENTELEMETRY_LIKELY_CONDITION (!Enabled(severity))
+    {
+      return false;
+    }
+    return EnabledImplementation(std::move(event_name));
+  }
+
+#if OPENTELEMETRY_ABI_VERSION_NO >= 2
+  /**
+   * Reports if the Logger is enabled for the current context and the current severity number.
+   *
+   * A disabled Logger does not emit any logs.
+   * @return a bool value indicating if the Logger is disabled.
+   *
+   * @since ABI_VERSION 2
+   */
+  inline bool Enabled() const noexcept {
+    return EnabledImplementation();
+  }
+
+  /**
+   * Sets the minimum severity level for log records to be processed.
+   *
+   * This function dynamically configures the minimum severity threshold for
+   * this logger. Any log record with a severity level numerically lower than the
+   * provided value will be efficiently discarded and not passed to any registered
+   * LogRecordProcessors.
+   *
+   * @param severity_or_max The new minimum severity level. This should be a value
+   * from the `opentelemetry::logs::Severity` enum, cast to a `uint8_t`.
+   * To enable all logs, use `Severity::kTrace`. To disable all but the most
+   * critical, use `Severity::kFatal`.
+   */
+  inline void SetMinimumSeverity(uint8_t severity_or_max) noexcept
+  {
+    OPENTELEMETRY_ATOMIC_WRITE_8(&minimum_severity_, severity_or_max);
+  }
+#endif
 
   /**
    * Log an event
@@ -470,6 +520,23 @@ protected:
   {
     return false;
   }
+
+  // TODO: Delete this, only for testing
+  virtual bool EnabledImplementation() const noexcept {
+    return true;
+  }
+
+  // TODO: Delete this, only for testing
+  // Note: Not sure if this filtering based on the even name is specified in the spec.
+  virtual bool EnabledImplementation(const std::string &event_name) const noexcept {
+
+  }
+
+#if OPENTELEMETRY_ABI_VERSION_NO >= 2
+  virtual bool EnabledImplementation() const noexcept {
+    return true;
+  }
+#endif
 
   void SetMinimumSeverity(uint8_t severity_or_max) noexcept
   {
